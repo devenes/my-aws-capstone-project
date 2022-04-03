@@ -1,0 +1,852 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+  AWS CloudFormation Sample Template vpc_multiple_subnets, web server, RDS, Autoscaling group adn ALB: Sample
+  template showing how to create an architecture included VPC with multiple subnets. There are two public, two
+  private subnets and one AZ has NAT Instance (it can be used as bastion host) and public subnets routed internet 
+  gateway. Both Subnets has contains an EC2 instance behind the load balancer and also basic web server application 
+  writte with Django. Autoscaling group is defined for tagte tarkking policy which is set up %70 CPU utilization. 
+  Cloudfront is served as cache. This app, send data to the RDS which is located private subnet and  also just specific
+  EC2 can reach RDS instance. **WARNING** This template creates an Amazon EC2 instance. You will be billed for the 
+  AWS resources used if you create a stack from this template. !!!Please do not forget to change userdata based on your github 
+  repository!!!
+
+Parameters:
+
+  VpcCidr:
+    Type: String
+    Description: VPC CIDR. (e.g. 10.0.0.10/16)
+    AllowedPattern: "^(10|172|192)\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\/(16|17|18|19|20|21|22|23|24|25|26|27|28)$"
+    ConstraintDescription: must be valid IPv4 CIDR block (/16 to /28).
+    Default: 10.0.0.10/16
+  # Public Subnet A
+  PublicSubnetACIDRBlock:
+    Type: String
+    Description: Subnet CIDR for Public Subnet A, (e.g. 10.0.10.10/24)
+    AllowedPattern: "^(10|172|192)\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\/(16|17|18|19|20|21|22|23|24|25|26|27|28)$"
+    ConstraintDescription: must be valid IPv4 CIDR block (/16 to /28).
+    Default: 10.0.10.10/24
+  # Public Subnet B
+  PublicSubnetBCIDRBlock:
+    Type: String
+    Description: Subnet CIDR for Public Subnet B, (e.g. 10.0.11.10/24)
+    AllowedPattern: "^(10|172|192)\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\/(16|17|18|19|20|21|22|23|24|25|26|27|28)$"
+    ConstraintDescription: must be valid IPv4 CIDR block (/16 to /28).
+    Default: 10.0.11.10/24
+  # Private Subnet A
+  PrivateSubnetACIDRBlock:
+    Type: String
+    Description: Subnet CIDR for Private Subnet A, (e.g. 10.0.20.10/24)
+    AllowedPattern: "^(10|172|192)\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\/(16|17|18|19|20|21|22|23|24|25|26|27|28)$"
+    ConstraintDescription: must be valid IPv4 CIDR block (/16 to /28).
+    Default: 10.0.20.10/24
+  # Private Subnet B
+  PrivateSubnetBCIDRBlock:
+    Type: String
+    Description: Subnet CIDR for Private Subnet B, (e.g. 10.0.21.10/24)
+    AllowedPattern: "^(10|172|192)\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\/(16|17|18|19|20|21|22|23|24|25|26|27|28)$"
+    ConstraintDescription: must be valid IPv4 CIDR block (/16 to /28).
+    Default: 10.0.21.10/24
+  KeyName:
+    Description: The EC2 Key Pair to allow SSH access to the instance
+    Type: 'AWS::EC2::KeyPair::KeyName'
+  OperatorEMail:
+    Description: EMail address to notify if there are any scaling operations
+    Type: String
+    AllowedPattern: ([a-zA-Z0-9_\-\.]+)@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.)|(([a-zA-Z0-9\-]+\.)+))([a-zA-Z]{2,4}|[0-9]{1,3})(\]?)
+    ConstraintDescription: must be a valid email address.
+    Default: example@gmail.com
+  ReadScalingMin:
+    Type: "Number"
+    Default: 3
+  WriteScalingMin:
+    Type: "Number"
+    Default: 3
+  BucketName:
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    ConstraintDescription: must begin with a letter and contain only alphanumeric
+      characters.
+    Default: djangomike
+    Description: S3 Bucket name  configuration file of blog application
+    MaxLength: '64'
+    MinLength: '1'
+    Type: String
+  DBName:
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    ConstraintDescription: must begin with a letter and contain only alphanumeric
+      characters.
+    Default: awscapstone
+    Description: Capstone database name
+    MaxLength: '64'
+    MinLength: '1'
+    Type: String
+  DBUser:
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    ConstraintDescription: must begin with a letter and contain only alphanumeric
+      characters.
+    Description: Capstone database admin account username
+    Default: awscapstone
+    MaxLength: '16'
+    MinLength: '1'
+    Type: String
+  DBPassword:
+    NoEcho: 'true'
+    Description: Password MySQL database access
+    Type: String
+    MinLength: '8'
+    MaxLength: '41'
+    AllowedPattern: '[a-zA-Z0-9]*'
+    ConstraintDescription: must contain only alphanumeric characters.
+  PolicyTargetValue:
+    Description: Please enter your Target value that triggers the Autoscaling
+    Default: '70'
+    Type: String
+  MyDomainName:
+    Type: AWS::Route53::HostedZone::Id
+    Description: The DNS name of an existing Amazon Route 53 hosted zone e.g. clarusway.us
+  CapstoneSubDomainName:
+    Type: String
+    Description: The full domain name e.g. capstone.clarusway.us
+    AllowedPattern: (?!-)[a-zA-Z0-9-.]{1,63}(?<!-)
+    ConstraintDescription: must be a valid DNS zone name.
+  InstanceType:
+    Description: WebServer EC2 instance type
+    Type: String
+    Default: t2.micro
+    AllowedValues:
+      - t1.micro
+      - t2.micro
+      - m1.small
+      - m1.medium
+      - m1.large
+      - m1.xlarge
+      - m2.xlarge
+      - m2.2xlarge
+      - m2.4xlarge
+      - m3.xlarge
+      - m3.2xlarge
+      - c1.medium
+      - c1.xlarge
+    ConstraintDescription: must be a valid EC2 instance type.
+Mappings:
+  AWSRegionArch2AMI:
+    us-east-1:
+      '64': ami-013f17f36f8b1fefb
+    us-east-2:
+      '64': ami-03657b56516ab7912
+    us-west-1:
+      '64': ami-0e4035ae3f70c400f 
+    us-west-2:
+      '64': ami-01fee56b22f308154
+    eu-central-1:
+      '64': ami-00a205cb8e06c3c4e
+    eu-central-2:
+      '64': ami-0bb3fad3c0286ebd5 
+  RegionMap:
+    us-east-1:
+      S3hostedzoneID: Z3AQBSTGFYJSTF
+      websiteendpoint: s3-website-us-east-1.amazonaws.com
+    us-west-1:
+      S3hostedzoneID: Z2F56UZL2M1ACD
+      websiteendpoint: s3-website-us-west-1.amazonaws.com
+    us-west-2:
+      S3hostedzoneID: Z3BJ6K6RIION7M
+      websiteendpoint: s3-website-us-west-2.amazonaws.com
+    eu-west-1:
+      S3hostedzoneID: Z1BKCTXD74EZPE
+      websiteendpoint: s3-website-eu-west-1.amazonaws.com
+    ap-southeast-1:
+      S3hostedzoneID: Z3O0J2DXBE1FTB
+      websiteendpoint: s3-website-ap-southeast-1.amazonaws.com
+    ap-southeast-2:
+      S3hostedzoneID: Z1WCIGYICN2BYD
+      websiteendpoint: s3-website-ap-southeast-2.amazonaws.com
+    ap-northeast-1:
+      S3hostedzoneID: Z2M4EHUR26P7ZW
+      websiteendpoint: s3-website-ap-northeast-1.amazonaws.com
+    sa-east-1:
+      S3hostedzoneID: Z31GFT0UA1I2HV
+      websiteendpoint: s3-website-sa-east-1.amazonaws.com
+Resources:
+  CapstoneCertificate:
+    Type: "AWS::CertificateManager::Certificate"
+    Properties:
+      CertificateTransparencyLoggingPreference: DISABLED
+      DomainName:
+        Fn::Join:
+        - ""
+        - - '*.'
+          - !Select [1, !Split ['.', !Ref CapstoneSubDomainName]]
+          - '.'
+          - !Select [2, !Split ['.', !Ref CapstoneSubDomainName]] #required
+      ValidationMethod: DNS
+      DomainValidationOptions:
+        - DomainName: !Ref CapstoneSubDomainName
+          HostedZoneId: !Ref MyDomainName
+  CapstoneCloudfront:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Comment: Cloudfront Distribution pointing to ALBDNS
+        Origins:
+        - DomainName: !GetAtt ALB.DNSName
+          Id: ALBOriginId
+          CustomOriginConfig:
+            OriginKeepaliveTimeout: 5
+            OriginSSLProtocols: 
+            - TLSv1
+            HTTPPort: 80
+            HTTPSPort: 443
+            OriginProtocolPolicy: match-viewer
+        Enabled: true
+        Aliases:
+        - !Ref CapstoneSubDomainName
+        DefaultCacheBehavior:
+          TargetOriginId: ALBOriginId
+          CachedMethods: 
+            - GET
+            - HEAD
+            - OPTIONS
+          SmoothStreaming: false
+          ForwardedValues:
+            QueryString: true
+            Cookies:
+              Forward: all
+            Headers: ["Host", "Accept", "Accept-Charset","Accept-Datetime", "Accept-Encoding", "Accept-Language", "Authorization", "Cloudfront-Forwarded-Proto", "Origin", "Referrer"]
+          AllowedMethods:
+          - GET
+          - HEAD
+          - OPTIONS
+          - PUT
+          - POST
+          - PATCH
+          - DELETE
+          Compress: true
+          ViewerProtocolPolicy: redirect-to-https
+        PriceClass: PriceClass_All
+        ViewerCertificate:
+          AcmCertificateArn: !Ref CapstoneCertificate
+          SslSupportMethod: sni-only
+  HealthCheck:
+    Type: AWS::Route53::HealthCheck
+    Properties:
+      HealthCheckConfig:
+        FailureThreshold: 3
+        FullyQualifiedDomainName:
+          Fn::GetAtt: CapstoneCloudfront.DomainName
+        Port: 80
+        RequestInterval: 30
+        Type: HTTP
+      HealthCheckTags:
+      - Key: Name
+        Value:
+          Ref: CapstoneSubDomainName
+  
+  CapstoneDNSName:
+    Type: AWS::Route53::RecordSetGroup
+    Properties:
+      HostedZoneId: !Ref MyDomainName
+      RecordSets:
+      - Name: !Ref CapstoneSubDomainName
+        Type: A
+        AliasTarget:
+          HostedZoneId: Z2FDTNDATAQYW2
+          DNSName: !GetAtt CapstoneCloudfront.DomainName
+        Failover: PRIMARY
+        SetIdentifier: Primary
+        HealthCheckId:
+          Ref: HealthCheck
+  TheSecondaryRecord:
+    Type: AWS::Route53::RecordSetGroup
+    Properties:
+      HostedZoneId: !Ref MyDomainName
+      RecordSets:
+      - Name: !Ref CapstoneSubDomainName
+        Type: A
+        AliasTarget:
+          HostedZoneId: !FindInMap [ RegionMap, !Ref 'AWS::Region', S3hostedzoneID]
+          DNSName: !FindInMap [ RegionMap, !Ref 'AWS::Region', websiteendpoint]
+        Failover: SECONDARY
+        SetIdentifier: secondary
+  SecondaryBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref CapstoneSubDomainName
+      AccessControl: PublicRead
+      WebsiteConfiguration:
+        IndexDocument: index.html
+  SecondaryBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      PolicyDocument:
+        Id: MyPolicy
+        Version: 2012-10-17
+        Statement:
+          - Sid: PublicReadForGetBucketObjects
+            Effect: Allow
+            Principal: '*'
+            Action: 's3:GetObject'
+            Resource: !Join 
+              - ''
+              - - 'arn:aws:s3:::'
+                - !Ref SecondaryBucket
+                - /*
+      Bucket: !Ref SecondaryBucket
+  NATSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: Enable HTTP and SSH for NAT #required
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+      VpcId: !Ref VPC
+  ALBSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: Enable HTTP for ALB #required
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+      VpcId: !Ref VPC
+
+  WebServersSecGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: Enable HTTP for Web Servers #required
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: !GetAtt ALBSecurityGroup.GroupId
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          SourceSecurityGroupId: !GetAtt ALBSecurityGroup.GroupId
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+      VpcId: !Ref VPC
+
+  WebServerTG:
+    Type: "AWS::ElasticLoadBalancingV2::TargetGroup"
+    Properties:
+      Port: 80
+      Protocol: HTTP
+      TargetType: instance
+      VpcId: !Ref VPC
+  
+  ALB:
+    Type: "AWS::ElasticLoadBalancingV2::LoadBalancer"
+    Properties:
+      IpAddressType: ipv4
+      Scheme: internet-facing
+      SecurityGroups:
+        - !GetAtt ALBSecurityGroup.GroupId
+      Subnets:
+        - !Ref PublicSubnetA
+        - !Ref PublicSubnetB
+      Type: application
+
+  ALBHTPPSListener:
+    Type: "AWS::ElasticLoadBalancingV2::Listener"
+    Properties:
+      Certificates: 
+        - CertificateArn: !Ref CapstoneCertificate
+      DefaultActions: #required
+        - TargetGroupArn: !Ref WebServerTG
+          Type: forward
+      LoadBalancerArn: !Ref ALB #required
+      Port: 443 #required
+      Protocol: HTTPS #required
+
+  ALBHTTPlistener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+      - Type: redirect
+        RedirectConfig:
+          Protocol: HTTPS
+          Port: '443'
+          Host: '#{host}'
+          Path: /#{path}
+          Query: '#{query}'
+          StatusCode: HTTP_301
+      LoadBalancerArn: !Ref ALB
+      Port: 80
+      Protocol: HTTP
+
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Action:
+            - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+              - lambda.amazonaws.com
+      Path: /
+      ManagedPolicyArns: 
+        - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+        - arn:aws:iam::aws:policy/job-function/NetworkAdministrator
+      Policies: 
+        - PolicyName: dynamodb
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "dynamodb:GetItem"
+                  - "dynamodb:PutItem"
+                  - "dynamodb:UpdateItem"
+                Resource: "arn:aws:dynamodb:*:*:*"
+        - PolicyName: s3
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "s3:PutObject"
+                  - "s3:GetObject"
+                  - "s3:GetObjectVersion"
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - lambda:Invoke*
+                Resource:
+                  - "*"
+
+  S3DynamoLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: 
+          !Sub 
+            - |
+              import json
+              import boto3
+    
+              def lambda_handler(event, context):
+                  s3 = boto3.client("s3")
+    
+                  if event:
+                      print("Event: ", event)
+                      filename = str(event['Records'][0]['s3']['object']['key'])
+                      timestamp = str(event['Records'][0]['eventTime'])
+                      event_name = str(event['Records'][0]['eventName']).split(':')[0][6:]
+    
+                      filename1 = filename.split('/')
+                      filename2 = filename1[-1]
+    
+                      dynamo_db = boto3.resource('dynamodb')
+                      dynamoTable = dynamo_db.Table('${MySMURI}')
+    
+                      dynamoTable.put_item(Item = {
+                          'id': filename2,
+                          'timestamp': timestamp,
+                          'Event': event_name,
+                      })
+    
+                  return "Lambda success"
+            - MySMURI: !Ref MyDynamoDB
+      Description: S3 Dynamo function
+      Handler: 'index.lambda_handler'
+      Role: !GetAtt LambdaRole.Arn
+      Runtime: python3.8
+      
+  LambdaInvoke:
+    Type: "AWS::Lambda::Permission"
+    Properties:
+      Action: "lambda:invokeFunction"
+      FunctionName: !GetAtt "S3DynamoLambda.Arn"
+      SourceAccount: !Ref 'AWS::AccountId'
+      Principal: "s3.amazonaws.com"
+      SourceArn: 
+        Fn::Sub: arn:aws:s3:::${BucketName}-encryption-service
+
+  myS3Bucket:
+    Type: "AWS::S3::Bucket"
+    DependsOn: LambdaInvoke
+    Properties:
+      AccessControl: PublicRead
+      BucketName: 
+        Fn::Sub: ${BucketName}-encryption-service
+      NotificationConfiguration:
+        LambdaConfigurations:
+        - Event: 's3:ObjectCreated:*'
+          Filter: 
+            S3Key:
+              Rules:
+                - Name: prefix
+                  Value: media/
+          Function: !GetAtt   S3DynamoLambda.Arn
+
+  myBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref myS3Bucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: '*'
+            Action:
+              - s3:PutObject
+              - s3:GetObject
+              - s3:GetObjectVersion
+            Resource: !Join
+              - ""
+              - - !GetAtt myS3Bucket.Arn
+                - "/*"
+  MyDynamoDB:
+    Type: "AWS::DynamoDB::Table"
+    DeletionPolicy: Delete
+    Properties:
+      AttributeDefinitions:
+        -
+          AttributeName: "id"
+          AttributeType: "S"
+        
+      KeySchema:
+        -
+          AttributeName: "id"
+          KeyType: "HASH"
+        
+      ProvisionedThroughput:
+        ReadCapacityUnits: !Ref ReadScalingMin
+        WriteCapacityUnits: !Ref WriteScalingMin
+
+  WebServerLTRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+              - ec2.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      ManagedPolicyArns: 
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+  WebServerLTProfile:
+    Type: 'AWS::IAM::InstanceProfile'
+    Properties:
+      Path: /
+      Roles:
+        - !Ref WebServerLTRole
+  WebServerLT:
+    Type: "AWS::EC2::LaunchTemplate"
+    Properties:
+      LaunchTemplateData:
+        ImageId: !FindInMap 
+          - AWSRegionArch2AMI
+          - !Ref 'AWS::Region'
+          - '64'
+        IamInstanceProfile:
+          Arn: !GetAtt
+            - WebServerLTProfile
+            - Arn
+        InstanceType: !Ref InstanceType
+        KeyName: !Ref KeyName
+        SecurityGroupIds:
+          - !GetAtt WebServersSecGroup.GroupId
+        TagSpecifications:
+          - ResourceType: instance
+            Tags:
+             - Key: Name
+               Value: Clarusway AWS Capstone Project
+        UserData:
+          Fn::Base64: 
+            !Sub
+              - |
+                #! /bin/bash
+                apt-get update -y
+                apt-get install git -y
+                apt-get install python3 -y
+                cd /home/ubuntu/
+                TOKEN="XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+                git clone <YOUR GITHUB REPO URL>
+                cd /home/ubuntu/<YOUR GITHUB REPO NAME>
+                apt install python3-pip -y
+                apt-get install python3.7-dev libmysqlclient-dev -y
+                pip3 install -r requirements.txt
+                cd /home/ubuntu/<YOUR GITHUB REPO NAME>/src
+                sed -i "s/'your DB password without any quotes'/${DBPassword}/g" .env
+                cd /home/ubuntu/<YOUR GITHUB REPO NAME>/src/cblog
+                sed -i "s/'database name in RDS is written here'/'${DBName}'/g" settings.py
+                sed -i "s/'database master username in RDS is written here'/'${DBUser}'/g" settings.py
+                sed -i "s/'database endpoint is written here'/'${MyDBURI}'/g" settings.py
+                sed -i "s/'database port is written here'/'3306'/g" settings.py
+                sed -i "s/'please enter your s3 bucket name'/'${BucketName}-encryption-service'/g" settings.py
+                sed -i "s/'please enter your s3 region'/'us-east-1'/g" settings.py
+                cd /home/ubuntu/<YOUR GITHUB REPO NAME>/src
+                python3 manage.py collectstatic --noinput
+                python3 manage.py makemigrations
+                python3 manage.py migrate
+                python3 manage.py runserver 0.0.0.0:80
+              - MyDBURI: !GetAtt MyDatabaseServer.Endpoint.Address
+
+  NotificationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      Subscription:
+      - Endpoint: !Ref 'OperatorEMail'
+        Protocol: email
+
+
+  WebServerASG:
+    Type: "AWS::AutoScaling::AutoScalingGroup"
+    DependsOn: MyDatabaseServer
+    Properties:
+      Cooldown: 200
+      DesiredCapacity: 2
+      HealthCheckGracePeriod: 300
+      HealthCheckType: ELB
+      NotificationConfigurations:
+        - TopicARN: !Ref 'NotificationTopic'
+          NotificationTypes: ['autoscaling:EC2_INSTANCE_LAUNCH', 'autoscaling:EC2_INSTANCE_LAUNCH_ERROR',
+            'autoscaling:EC2_INSTANCE_TERMINATE', 'autoscaling:EC2_INSTANCE_TERMINATE_ERROR']
+      LaunchTemplate:
+        LaunchTemplateId: !Ref WebServerLT
+        Version: !GetAtt WebServerLT.LatestVersionNumber
+      MaxSize: 4 #required
+      MinSize: 2 #required
+      TargetGroupARNs:
+        - !Ref WebServerTG
+      VPCZoneIdentifier:
+          - !Ref PrivateSubnetA
+          - !Ref PrivateSubnetB
+
+  myCPUPolicy:
+    Type: "AWS::AutoScaling::ScalingPolicy"
+    Properties:
+      AutoScalingGroupName: !Ref WebServerASG
+      PolicyType: TargetTrackingScaling
+      TargetTrackingConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ASGAverageCPUUtilization
+        TargetValue: !Ref PolicyTargetValue
+
+  MyDBSubnetGroup:
+    Type: 'AWS::RDS::DBSubnetGroup'
+    Properties:
+      DBSubnetGroupDescription: Subnets available for the RDS DB Instance
+      SubnetIds:
+        - !Ref PrivateSubnetA
+        - !Ref PrivateSubnetB
+  MyDBSecurityGroup:
+    Type: "AWS::RDS::DBSecurityGroup"
+    Properties:
+      DBSecurityGroupIngress: #required
+        - EC2SecurityGroupId: !GetAtt WebServersSecGroup.GroupId
+      EC2VpcId: !Ref VPC
+      GroupDescription: Security group for RDS DB Instance. #required
+
+  NATInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: ami-00a9d4a05375b2763
+      InstanceType: t2.micro
+      KeyName: !Ref KeyName
+      SecurityGroupIds:
+        - !GetAtt NATSecurityGroup.GroupId
+      SourceDestCheck: false
+      SubnetId: !Ref PublicSubnetA
+      Tags:
+        - Key: Name
+          Value: !Sub NAT Instance of ${AWS::StackName}
+
+  MyDatabaseServer:
+    Type: "AWS::RDS::DBInstance"
+    DeletionPolicy: Delete
+    Properties:
+      AllocatedStorage: "20"
+      AllowMajorVersionUpgrade: false
+      AutoMinorVersionUpgrade: true
+      BackupRetentionPeriod: 0
+      DBInstanceClass: db.t2.micro #required
+      DBName: !Ref DBName
+      DBSubnetGroupName: !Ref MyDBSubnetGroup
+      DeleteAutomatedBackups: true
+      DeletionProtection: false
+      DBSecurityGroups:
+        - !Ref MyDBSecurityGroup
+      Engine: MySQL
+      EngineVersion: 8.0.20
+      MasterUserPassword: !Ref DBPassword
+      MasterUsername: !Ref DBUser
+      MaxAllocatedStorage: 30
+      PreferredBackupWindow: 03:00-04:00
+      MultiAZ: false
+      Port: "3306"
+      VPCSecurityGroups:
+        - !Ref MyDBSecurityGroup
+  
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidr
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+      - Key: Name
+        Value:  !Join ['', [!Ref "AWS::StackName", "-VPC" ]]
+  
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PublicSubnetACIDRBlock
+      MapPublicIpOnLaunch: true
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]         
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-Public-A
+
+  PublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PublicSubnetBCIDRBlock
+      MapPublicIpOnLaunch: true
+      AvailabilityZone: !Select [ 1, !GetAZs '' ]      
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-Public-B
+
+  PrivateSubnetA:
+     Type: AWS::EC2::Subnet
+     Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PrivateSubnetACIDRBlock
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]    
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-Private-A
+
+  PrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+     VpcId: !Ref VPC
+     CidrBlock: !Ref PrivateSubnetBCIDRBlock
+     AvailabilityZone: !Select [ 1, !GetAZs '' ]       
+     Tags:
+      - Key: Name
+        Value: !Sub ${AWS::StackName}-Private-B
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    DependsOn: VPC
+  
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+  
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Sub Public Route Table of ${AWS::StackName}
+  
+  PublicRouteRule1:  
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway  
+  
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Sub Private Route Table of ${AWS::StackName}
+  
+  PrivateRouteRule:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      InstanceId: 
+        Ref: NATInstance
+  
+  PublicSubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetA
+      RouteTableId: !Ref PublicRouteTable
+  
+  PublicSubnetBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetB
+      RouteTableId: !Ref PublicRouteTable
+  
+  PrivateSubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetA
+      RouteTableId: !Ref PrivateRouteTable
+  
+  PrivateSubnetBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetB
+      RouteTableId: !Ref PrivateRouteTable
+
+Outputs:
+  DistributionName:
+    Description: URL to access the CloudFront distribution
+    Value: !Join 
+      - ''
+      - - 'http://'
+        - !GetAtt 
+          - CapstoneCloudfront
+          - DomainName
+  ALBDnsName:
+    Description: URL to access the Application Load Balance
+    Value: !Join 
+      - ''
+      - - 'http://'
+        - !GetAtt 
+          - ALB
+          - DNSName
+
+  WebsiteURL:
+    Description: Website URL
+    Value: !Join 
+      - ''
+      - - 'https://'
+        - !Ref CapstoneSubDomainName
+        
+  
