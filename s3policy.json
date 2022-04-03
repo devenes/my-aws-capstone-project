@@ -1,0 +1,13 @@
+{
+  "Version": "2012-10-17",
+  "Id": "Policy1649009833841",
+  "Statement": [
+    {
+      "Sid": "Stmt1649009825154",
+      "Effect": "Allow",
+      "Principal": "*",
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::www.caucasusllc.com/*"
+    }
+  ]
+}
