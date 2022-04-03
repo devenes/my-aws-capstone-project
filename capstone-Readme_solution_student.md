@@ -45,7 +45,9 @@ The Clarusway Blog Page Application aims to deploy blog application as a web app
 - Go to the endpoint section on the left hand menu
 - select endpoint
 - click create endpoint
-- service name : `com.amazonaws.us-east-1.s3`
+- Name Tag: `aws-capstone-EP`
+- Services : `com.amazonaws.us-east-1.s3`
+- Service Type: Gateway
 - VPC : `aws_capstone-VPC`
 - Route Table : private route tables
 - Policy : `Full Access`
@@ -54,38 +56,40 @@ The Clarusway Blog Page Application aims to deploy blog application as a web app
 ### Step 2: Create Security Groups (ALB ---> EC2 ---> RDS)
 
 1. ALB Security Group
-   Name : aws_capstone_ALB_Sec_Group
-   Description : ALB Security Group allows traffic HTTP and HTTPS ports from anywhere
-   Inbound Rules
-   VPC : AWS_Capstone_VPC
-   HTTP(80) ----> anywhere
-   HTTPS (443) ----> anywhere
+
+   - Name : `aws_capstone_ALB_Sec_Group`
+   - Description : ALB Security Group allows traffic HTTP and HTTPS ports from anywhere
+   - Inbound Rules
+   - VPC : AWS_Capstone_VPC
+   - HTTP(80) ----> anywhere
+   - HTTPS (443) ----> anywhere
 
 2. EC2 Security Groups
-   Name : aws_capstone_EC2_Sec_Group
-   Description : EC2 Security Groups only allows traffic coming from aws_capstone_ALB_Sec_Group Security Groups for HTTP and HTTPS ports. In addition, ssh port is allowed from anywhere
-   VPC : AWS_Capstone_VPC
-   Inbound Rules
-   HTTP(80) ----> aws_capstone_ALB_Sec_Group
-   HTTPS (443) ----> aws_capstone_ALB_Sec_Group
-   ssh ----> anywhere
+
+   - Name : `aws_capstone_EC2_Sec_Group`
+   - Description : EC2 Security Groups only allows traffic coming from - aws_capstone_ALB_Sec_Group Security Groups for HTTP and HTTPS ports. In addition, ssh port is allowed from anywhere
+   - VPC : AWS_Capstone_VPC
+   - Inbound Rules
+   - HTTP(80) ----> aws_capstone_ALB_Sec_Group
+   - HTTPS (443) ----> aws_capstone_ALB_Sec_Group
+   - ssh ----> anywhere
 
 3. RDS Security Groups
-   Name : aws_capstone_RDS_Sec_Group
-   Description : EC2 Security Groups only allows traffic coming from aws_capstone_EC2_Sec_Group Security Groups for MYSQL/Aurora port.
 
-VPC : AWS_Capstone_VPC
-Inbound Rules
-MYSQL/Aurora(3306) ----> aws_capstone_EC2_Sec_Group
+   - Name : `aws_capstone_RDS_Sec_Group`
+   - Description : EC2 Security Groups only allows traffic coming from aws_capstone_EC2_Sec_Group Security Groups for MYSQL/Aurora port.
+   - VPC : AWS_Capstone_VPC
+   - Inbound Rules
+   - MYSQL/Aurora(3306) ----> aws_capstone_EC2_Sec_Group
 
 4. NAT Instance Security Group
-   Name : aws_capstone_NAT_Sec_Group
-   Description : ALB Security Group allows traffic HTTP and HTTPS and SSH ports from anywhere
-   Inbound Rules
-   VPC : AWS_Capstone_VPC
-   HTTP(80) ----> anywhere
-   HTTPS (443) ----> anywhere
-   SSH (22) ----> anywhere
+   - Name : `aws_capstone_NAT_Sec_Group`
+   - Description : ALB Security Group allows traffic HTTP and HTTPS and SSH ports from anywhere
+   - Inbound Rules
+   - VPC : AWS_Capstone_VPC
+   - HTTP(80) ----> anywhere
+   - HTTPS (443) ----> anywhere
+   - SSH (22) ----> anywhere
 
 ### Step 3: Create RDS
 
@@ -96,9 +100,8 @@ Name               : aws_capstone_RDS_Subnet_Group
 Description        : aws capstone RDS Subnet Group
 VPC                : aws_capstone_VPC
 Add Subnets
-Availability Zones : Select 2 AZ in aws_capstone_VPC
-Subnets            : Select 2 Private Subnets in these subnets
-
+Availability Zones : Select 2 AZ in aws_capstone_VPC (us-east-1a, us-east-1b)
+Subnets            : Select 2 Private Subnets in these subnets (90.90.11.0/24, 90.90.21.0/24)
 ```
 
 - Go to the RDS console and click `create database` button
