@@ -5,85 +5,92 @@
 The Clarusway Blog Page Application aims to deploy blog application as a web application written Django Framework on AWS Cloud Infrastructure. This infrastructure has Application Load Balancer with Auto Scaling Group of Elastic Compute Cloud (EC2) Instances and Relational Database Service (RDS) on defined VPC. Also, The Cloudfront and Route 53 services are located in front of the architecture and manage the traffic in secure. User is able to upload pictures and videos on own blog page and these are kept on S3 Bucket. This architecture will be created by Firms DevOps Guy.
 
 ## Steps to Solution
-  
+
 ### Step 1: Create dedicated VPC and whole components
-        
-    ### VPC
-    - Create VPC. 
-        create a vpc named `aws_capstone-VPC` CIDR blok is `90.90.0.0/16` 
-        no ipv6 CIDR block
-        tenancy: default
-    - select `aws_capstone-VPC` VPC, click `Actions` and `enable DNS hostnames` for the `aws_capstone-VPC`. 
 
-    ## Subnets
-    - Create Subnets
-        - Create a public subnet named `aws_capstone-public-subnet-1A` under the vpc aws_capstone-VPC in AZ us-east-1a with 90.90.10.0/24
-        - Create a private subnet named `aws_capstone-private-subnet-1A` under the vpc aws_capstone-VPC in AZ us-east-1a with 90.90.11.0/24
-        - Create a public subnet named `aws_capstone-public-subnet-1B` under the vpc aws_capstone-VPC in AZ us-east-1b with 90.90.20.0/24
-        - Create a private subnet named `aws_capstone-private-subnet-1B` under the vpc aws_capstone-VPC in AZ us-east-1b with 90.90.21.0/24
+### VPC
 
-    - Set `auto-assign IP` up for public subnets. Select each public subnets and click Modify "auto-assign IP settings" and select "Enable auto-assign public IPv4 address" 
+- Create VPC.
+  create a vpc named `aws_capstone-VPC` CIDR blok is `90.90.0.0/16`
+  no ipv6 CIDR block
+  tenancy: default
+- select `aws_capstone-VPC` VPC, click `Actions` and `enable DNS hostnames` for the `aws_capstone-VPC`.
 
-    ## Internet Gateway
+## Subnets
 
-    - Click Internet gateway section on left hand side. Create an internet gateway named `aws_capstone-IGW` and create.
+- Create Subnets
 
-    - ATTACH the internet gateway `aws_capstone-IGW` to the newly created VPC `aws_capstone-VPC`. Go to VPC and select newly created VPC and click action ---> Attach to VPC ---> Select `aws_capstone-VPC` VPC 
+  - Create a public subnet named `aws_capstone-public-subnet-1A` under the vpc aws_capstone-VPC in AZ us-east-1a with 90.90.10.0/24
+  - Create a private subnet named `aws_capstone-private-subnet-1A` under the vpc aws_capstone-VPC in AZ us-east-1a with 90.90.11.0/24
+  - Create a public subnet named `aws_capstone-public-subnet-1B` under the vpc aws_capstone-VPC in AZ us-east-1b with 90.90.20.0/24
+  - Create a private subnet named `aws_capstone-private-subnet-1B` under the vpc aws_capstone-VPC in AZ us-east-1b with 90.90.21.0/24
 
-    ## Route Table
-    - Go to route tables on left hand side. We have already one route table as main route table. Change it's name as `aws_capstone-public-RT` 
-    - Create a route table and give a name as `aws_capstone-private-RT`.
-    - Add a rule to `aws_capstone-public-RT` in which destination 0.0.0.0/0 (any network, any host) to target the internet gateway `aws_capstone-IGW` in order to allow access to the internet.
-    - Select the private route table, come to the subnet association subsection and add private subnets to this route table. Similarly, we will do it for public route table and public subnets. 
-        
-    ## Endpoint
-    - Go to the endpoint section on the left hand menu
-    - select endpoint
-    - click create endpoint
-    - service name  : `com.amazonaws.us-east-1.s3`
-    - VPC           : `aws_capstone-VPC`
-    - Route Table   : private route tables
-    - Policy        : `Full Access`
-    - Create
+- Set `auto-assign IP` up for public subnets. Select each public subnets and click Modify "auto-assign IP settings" and select "Enable auto-assign public IPv4 address"
+
+## Internet Gateway
+
+- Click Internet gateway section on left hand side. Create an internet gateway named `aws_capstone-IGW` and create.
+
+- ATTACH the internet gateway `aws_capstone-IGW` to the newly created VPC `aws_capstone-VPC`. Go to VPC and select newly created VPC and click action ---> Attach to VPC ---> Select `aws_capstone-VPC` VPC
+
+## Route Table
+
+- Go to route tables on left hand side. We have already one route table as main route table. Change it's name as `aws_capstone-public-RT`
+- Create a route table and give a name as `aws_capstone-private-RT`.
+- Add a rule to `aws_capstone-public-RT` in which destination 0.0.0.0/0 (any network, any host) to target the internet gateway `aws_capstone-IGW` in order to allow access to the internet.
+- Select the private route table, come to the subnet association subsection and add private subnets to this route table. Similarly, we will do it for public route table and public subnets.
+
+## Endpoint
+
+- Go to the endpoint section on the left hand menu
+- select endpoint
+- click create endpoint
+- service name : `com.amazonaws.us-east-1.s3`
+- VPC : `aws_capstone-VPC`
+- Route Table : private route tables
+- Policy : `Full Access`
+- Create
 
 ### Step 2: Create Security Groups (ALB ---> EC2 ---> RDS)
 
 1. ALB Security Group
-Name            : aws_capstone_ALB_Sec_Group
-Description     : ALB Security Group allows traffic HTTP and HTTPS ports from anywhere 
-Inbound Rules
-VPC             : AWS_Capstone_VPC
-HTTP(80)    ----> anywhere
-HTTPS (443) ----> anywhere
+   Name : aws_capstone_ALB_Sec_Group
+   Description : ALB Security Group allows traffic HTTP and HTTPS ports from anywhere
+   Inbound Rules
+   VPC : AWS_Capstone_VPC
+   HTTP(80) ----> anywhere
+   HTTPS (443) ----> anywhere
 
 2. EC2 Security Groups
-Name            : aws_capstone_EC2_Sec_Group
-Description     : EC2 Security Groups only allows traffic coming from aws_capstone_ALB_Sec_Group Security Groups for HTTP and HTTPS ports. In addition, ssh port is allowed from anywhere
-VPC             : AWS_Capstone_VPC
-Inbound Rules
-HTTP(80)    ----> aws_capstone_ALB_Sec_Group
-HTTPS (443) ----> aws_capstone_ALB_Sec_Group
-ssh         ----> anywhere
+   Name : aws_capstone_EC2_Sec_Group
+   Description : EC2 Security Groups only allows traffic coming from aws_capstone_ALB_Sec_Group Security Groups for HTTP and HTTPS ports. In addition, ssh port is allowed from anywhere
+   VPC : AWS_Capstone_VPC
+   Inbound Rules
+   HTTP(80) ----> aws_capstone_ALB_Sec_Group
+   HTTPS (443) ----> aws_capstone_ALB_Sec_Group
+   ssh ----> anywhere
 
 3. RDS Security Groups
-Name            : aws_capstone_RDS_Sec_Group
-Description     : EC2 Security Groups only allows traffic coming from aws_capstone_EC2_Sec_Group Security Groups for MYSQL/Aurora port. 
+   Name : aws_capstone_RDS_Sec_Group
+   Description : EC2 Security Groups only allows traffic coming from aws_capstone_EC2_Sec_Group Security Groups for MYSQL/Aurora port.
 
-VPC             : AWS_Capstone_VPC
+VPC : AWS_Capstone_VPC
 Inbound Rules
-MYSQL/Aurora(3306)  ----> aws_capstone_EC2_Sec_Group
+MYSQL/Aurora(3306) ----> aws_capstone_EC2_Sec_Group
 
 4. NAT Instance Security Group
-Name            : aws_capstone_NAT_Sec_Group
-Description     : ALB Security Group allows traffic HTTP and HTTPS and SSH ports from anywhere 
-Inbound Rules
-VPC             : AWS_Capstone_VPC
-HTTP(80)    ----> anywhere
-HTTPS (443) ----> anywhere
-SSH (22)    ----> anywhere
+   Name : aws_capstone_NAT_Sec_Group
+   Description : ALB Security Group allows traffic HTTP and HTTPS and SSH ports from anywhere
+   Inbound Rules
+   VPC : AWS_Capstone_VPC
+   HTTP(80) ----> anywhere
+   HTTPS (443) ----> anywhere
+   SSH (22) ----> anywhere
 
 ### Step 3: Create RDS
-First we create a subnet group for our custom VPC. Click `subnet Groups` on the left hand menu and click `create DB Subnet Group` 
+
+First we create a subnet group for our custom VPC. Click `subnet Groups` on the left hand menu and click `create DB Subnet Group`
+
 ```text
 Name               : aws_capstone_RDS_Subnet_Group
 Description        : aws capstone RDS Subnet Group
@@ -93,22 +100,24 @@ Availability Zones : Select 2 AZ in aws_capstone_VPC
 Subnets            : Select 2 Private Subnets in these subnets
 
 ```
+
 - Go to the RDS console and click `create database` button
+
 ```text
 Choose a database creation method : Standart Create
 Engine Options  : Mysql
 Version         : 8.0.20
 Templates       : Free Tier
-Settings        : 
+Settings        :
     - DB instance identifier : aws-capstone-rds
     - Master username        : admin
-    - Password               : Clarusway1234 
+    - Password               : Clarusway1234
 DB Instance Class            : Burstable classes (includes t classes) ---> db.t2.micro
 Storage                      : 20 GB and enable autoscaling(up to 40GB)
 Connectivity:
     VPC                      : aws_capstone_VPC
     Subnet Group             : aws_capstone_RDS_Subnet_Group
-    Public Access            : No 
+    Public Access            : No
     VPC Security Groups      : Choose existing ---> aws_capstone_RDS_Sec_Group
     Availability Zone        : No preference
     Additional Configuration : Database port ---> 3306
@@ -123,11 +132,13 @@ create instance
 ```
 
 ### Step 4: Create two S3 Buckets and set one of these as static website.
-Go to the S3 Consol and lets create two buckets. 
+
+Go to the S3 Consol and lets create two buckets.
 
 1. Blog Website's S3 Bucket
 
 - Click Create Bucket
+
 ```text
 Bucket Name : awscapstones<name>blog
 Region      : N.Virginia
@@ -143,6 +154,7 @@ create bucket
 2. S3 Bucket for failover scenario
 
 - Click Create Bucket
+
 ```text
 Bucket Name : www.clarusway.us
 Region      : N.Virginia
@@ -153,24 +165,29 @@ Block Public Access settings for this bucket
 Block all public access : Unchecked
 Please keep other settings as are
 ```
+
 - create bucket
 
 - Selects created `www.<YOUR DNS NAME>` bucket ---> Properties ---> Static website hosting
+
 ```text
 Static website hosting : Enable
 Hosting Type : Host a static website
 Index document : index.html
 save changes
 ```
+
 - Select `www.<YOUR DNS NAME>` bucket ---> select Upload and upload `index.html` and `sorry.jpg` files from given folder---> Permissions ---> Grant public-read access ---> Checked warning massage
 
-## Step 5: Copy files downloaded or cloned from `Clarusway_project` repo on Github 
+## Step 5: Copy files downloaded or cloned from `Clarusway_project` repo on Github
 
 ## Step 6: Prepair your Github repository
+
 - Create private project repository on your Github and clone it on your local. Copy all files and folders which are downloaded from clarusway repo under this folder. Commit and push them on your private Git hup Repo.
 
 ## Step 7: Prepare a userdata to be utilized in Launch Template
-Please 
+Please
+
 ```bash
 #!/bin/bash
 apt-get update -y
@@ -192,25 +209,28 @@ python3 manage.py runserver 0.0.0.0:80
 
 ## Step 8: Write RDS database endpoint and S3 Bucket name in settings file given by Clarusway Fullstack Developer team and push your application into your own public repo on Github
 Please follow and apply the instructions in the developer_notes.txt.
+
 ```text
 - Movie and picture files are kept on S3 bucket named aws_capstone_S3_<name>_Blog as object. You should create an S3 bucket and write name of it on "/src/cblog/settings.py" file as AWS_STORAGE_BUCKET_NAME variable. In addition, you must assign region of S3 as AWS_S3_REGION_NAME variable
 
 - Users credentials and blog contents are going to be kept on RDS database. To connect EC2 to RDS, following variables must be assigned on "/src/cblog/settings.py" file after you create RDS;
-    a. Database name - "NAME" variable 
+    a. Database name - "NAME" variable
     b. Database endpoint - "HOST" variables
     c. Port - "PORT"
     d. PASSWORD variable must be written on "/src/.env" file not to be exposed with settings file
 ```
+
 - Please check if this userdata is working or not. to do this create new instance in public subnet and show to students that it is working
 
 ## Step 9: Create NAT Instance in Public Subnet
+
 To launch NAT instance, go to the EC2 console and click the create button.
 
 ```text
 write "NAT" into the filter box
-select NAT Instance `amzn-ami-vpc-nat-hvm-2018.03.0.20181116-x86_64-ebs` 
+select NAT Instance `amzn-ami-vpc-nat-hvm-2018.03.0.20181116-x86_64-ebs`
 Instance Type: t2.micro
-Configure Instance Details  
+Configure Instance Details
     - Network : aws_capstone_VPC
     - Subnet  : aws_capstone-public-subnet-1A (Please select one of your Public Subnets)
     - Other features keep them as are
@@ -222,8 +242,10 @@ Review and select our own pem key
 ```
 
 !!!IMPORTANT!!!
+
 - select newly created NAT instance and enable stop source/destination check
 - go to private route table and write a rule
+
 ```
 Destination : 0.0.0.0/0
 Target      : instance ---> Select NAT Instance
@@ -231,7 +253,9 @@ Save
 ```
 
 ## Step 10: Create Launch Template and IAM role for it
+
 Go to the IAM role console click role on the right hand menu than create role
+
 ```text
 trusted entity  : EC2 as  ---> click Next:Permission
 Policy          : AmazonS3FullAccess policy
@@ -241,6 +265,7 @@ Description     : For EC2, S3 Full Access Role
 ```
 
 To create Launch Template, go to the EC2 console and select `Launch Template` on the left hand menu. Tab the Create Launch Template button.
+
 ```bash
 Launch template name                : aws_capstone_launch_template
 Template version description        : Blog Web Page version 1
@@ -272,13 +297,16 @@ python3 manage.py makemigrations
 python3 manage.py migrate
 python3 manage.py runserver 0.0.0.0:80
 ```
+
 - create launch template
 
 ## Step 11: Create certification for secure connection
-Go to the certification manager console and click `request a certificate` button. Select `Request a public certificate`, then `request a certificate` ---> `*.<YOUR DNS NAME>` ---> DNS validation ---> No tag ---> Review ---> click confirm and request button. Then it takes a while to be activated. 
+Go to the certification manager console and click `request a certificate` button. Select `Request a public certificate`, then `request a certificate` ---> `*.<YOUR DNS NAME>` ---> DNS validation ---> No tag ---> Review ---> click confirm and request button. Then it takes a while to be activated.
 
 ## Step 12: Create ALB and Target Group
+
 Go to the Load Balancer section on the left hand side menu of EC2 console. Click `create Load Balancer` button and select Application Load Balancer
+
 ```text
 Application Load Balancer ---> Create
 Basic Configuration:
@@ -315,7 +343,7 @@ Protocol HTTP ---> Port 443 ---> Default Action Create Target Group (New Window 
 click Next
 
 Register Targets -->""We're not gonna add any EC2 here. While we create autoscaling group, it will ask us to show target group and ELB, then we'll indicate this target group there, so whenever autoscaling group launches new machine, it will registered this target group automatically.""
-without register any target click Next: Review 
+without register any target click Next: Review
 
 then create "Target Group"
 
@@ -328,6 +356,7 @@ Secure Listener Settings        :
     Default ACM    : *.clarusway.us
 
 ```
+
 - click create
 
 After creation of ALB, our ALB have to redirect http traffic to https port. Because our requirement wants to secure traffic. Thats why we should change listener rules. Go to the ALB console and select Listeners sub-section
@@ -340,14 +369,16 @@ select HTTP: 80 rule ---> click edit
     - Original host, path, query
     - 301 - permanently moved
 ```
+
 Lets go ahead and look at our ALB DNS --> it going to say "it is not safe", however, it will be fixed after connect ALB to our DNS with Route 53
 
-## Step 13: Create Autoscaling Group with Launch Template 
+## Step 13: Create Autoscaling Group with Launch Template
 
-Go to the Autoscaling Group on the left hand side menu. Click create Autoscaling group. 
+Go to the Autoscaling Group on the left hand side menu. Click create Autoscaling group.
 
 - Choose launch template or configuration
-```text 
+
+```text
 Auto Scaling group name         : aws_capstone_ASG
 Launch Template                 : aws_capstone_launch_template
 ```
@@ -386,12 +417,13 @@ Scaling policies
 ```
 
 - Add notifications
+
 ```text
 Create new Notification
     - Notification1
         - Send a notification to    : aws-capstone-SNS
         - with these recipients     : serdar@clarusway.com
-        - event type                : select all 
+        - event type                : select all
 ```
 
 <!-- WARNING!!! Sometimes your EC2 has a problem after you create autoscaling group, If you need to look inside one of your instance to make sure where the problem is, please follow these steps...
@@ -405,8 +437,11 @@ You are in the private EC2 instance
 ``` -->
 
 ## Step 14: Create Cloudfront in front of ALB
+
 Go to the cloudfront menu and click start
+
 - Origin Settings
+
 ```text
 Origin Domain Name          : aws-capstone-ALB-1947210493.us-east-2.elb.amazonaws.com
 Origin Path                 : Leave empty (this means, define for root '/')
@@ -419,7 +454,9 @@ Add custom header           : No header
 Enable Origin Shield        : No
 Additional settings         : Keep it as is
 ```
+
 Default Cache Behavior Settings
+
 ```text
 Path pattern                                : Default (*)
 Compress objects automatically              : Yes
@@ -442,17 +479,20 @@ Cache key and origin requests
     - Referrer
 Forward Cookies                         : All
 Query String Forwarding and Caching     : All
-Other stuff                             : Keep them as are 
+Other stuff                             : Keep them as are
 ```
+
 - Distribution Settings
+
 ```text
 Price Class                             : Use all edge locations (best performance)
 Alternate Domain Names                  : www.clarusway.us
 SSL Certificate                         : Custom SSL Certificate (example.com) ---> Select your certificate creared before
-Other stuff                             : Keep them as are                  
+Other stuff                             : Keep them as are
 ```
 
 ## Step 15: Create Route 53 with Failover settings
+
 Come to the Route53 console and select Health checks on the left hand menu. Click create health check
 Configure health check
 
@@ -466,15 +506,17 @@ Port                : 80
 Path                : leave it blank
 Other stuff         : Keep them as are
 ```
+
 - Click Hosted zones on the left hand menu
 
-- click your Hosted zone        : <YOUR DNS NAME>
+- click your Hosted zone : <YOUR DNS NAME>
 
 - Create Failover scenario
 
 - Click Create Record
 
 - Select Failover ---> Click Next
+
 ```text
 Configure records
 Record name             : www.<YOUR DNS NAME>
@@ -510,6 +552,7 @@ Record ID               : S3 Bucket for Secondary record type
 Go to the Dynamo Db table and click create table button
 
 - Create DynamoDB table
+
 ```text
 Name            : awscapstoneDynamo
 Primary key     : id
@@ -520,9 +563,10 @@ click create
 ## Step 17-18: Create Lambda function
 
 Before we create our Lambda function, we should create IAM role that we'll use for Lambda function. Go to the IAM console and select role on the left hand menu, then create role button
+
 ```text
 Select Lambda as trusted entity ---> click Next:Permission
-Choose: - LambdaS3fullaccess, 
+Choose: - LambdaS3fullaccess,
         - Network Administrator
         - DynamoDBFullAccess
 No tags
@@ -533,6 +577,7 @@ Role description    : This role give a permission to lambda to reach S3 and Dyna
 then, go to the Lambda Console and click create function
 
 - Basic Information
+
 ```text
 
 Function Name           : awscapstonelambdafunction
@@ -540,13 +585,13 @@ Runtime                 : Python 3.8
 Create IAM role         : S3 full access policy
 
 Advance Setting:
-Network                 : 
+Network                 :
     - VPC               : aws-capstone-VPC
     - Subnets           : Select all subnets
     - Security Group    : Select default security Group
 ```
 
-- Now we'll go to the S3 bucket belongs our website and create an event to trigger our Lambda function. 
+- Now we'll go to the S3 bucket belongs our website and create an event to trigger our Lambda function.
 
 ## Step 17-18: Create S3 Event and set it as trigger for Lambda Function
 
@@ -555,21 +600,24 @@ Go to the S3 console and select the S3 bucket named `awscapstonec3<name>blog`.
 - Go to the properties menu ---> Go to the Event notifications part
 
 - Click create event notification for creating object
-```text
+
+````text
 Event Name              : aws capstone S3 event
 Prefix                  : media/
 Select                  :
     - All object create events
 Destination             : Lambda Function
-Specify Lambda function : Choose from your Lambda functions 
+Specify Lambda function : Choose from your Lambda functions
 Lambda funstion         : awscapstonelambdafunction
 click save
 ```text
 
-```
+````
+
 - After create an event go to the `awscapstonelambdafunction` lambda Function and click add trigger on the top left hand side.
 
 - For defining trigger for creating objects
+
 ```text
 Trigger configuration   : S3
 Bucket                  : awscapstonec3<name>blog
@@ -578,6 +626,7 @@ Check the warning message and click add ---> sometimes it says overlapping situa
 ```
 
 - For defining trigger for deleting objects
+
 ```bash
 
 Trigger configuration   : S3
@@ -586,7 +635,7 @@ Event type              : All object delete events
 Check the warning message and click add ---> sometimes it says overlapping situation. When it occurs, try refresh page and create a new trigger or remove the s3 event and recreate again. then again create a trigger for lambda function
 ```
 
-- Go to the code part and select lambda_function.py ---> remove default code and paste a code on below. If you give DynamoDB a different name, please make sure to change it into the code. 
+- Go to the code part and select lambda_function.py ---> remove default code and paste a code on below. If you give DynamoDB a different name, please make sure to change it into the code.
 
 ```python
 import json
@@ -594,29 +643,29 @@ import boto3
 
 def lambda_handler(event, context):
     s3 = boto3.client("s3")
-    
+
     if event:
         print("Event: ", event)
         filename = str(event['Records'][0]['s3']['object']['key'])
         timestamp = str(event['Records'][0]['eventTime'])
         event_name = str(event['Records'][0]['eventName']).split(':')[0][6:]
-        
+
         filename1 = filename.split('/')
         filename2 = filename1[-1]
-        
+
         dynamo_db = boto3.resource('dynamodb')
         dynamoTable = dynamo_db.Table('awscapstoneDynamo')
-        
+
         dynamoTable.put_item(Item = {
             'id': filename2,
             'timestamp': timestamp,
             'Event': event_name,
         })
-        
+
     return "Lambda success"
 ```
 
-- Click deploy and all set. go to the website and add a new post with photo, then control if their record is written on DynamoDB. 
+- Click deploy and all set. go to the website and add a new post with photo, then control if their record is written on DynamoDB.
 
 - WE ALL SET
 
