@@ -1,4 +1,4 @@
-Hi DevOps Team
+Hi DevOps Team;
 
 - We have coded a blog app. Users can publish their blog pages which have their comments, movie or picture files. 
 
