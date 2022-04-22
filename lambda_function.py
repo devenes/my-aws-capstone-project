@@ -23,4 +23,4 @@ def lambda_handler(event, context):
             'Event': event_name,
         })
 
-    return "Lammda success"
+    return "Lambda success"
