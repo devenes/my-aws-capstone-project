@@ -1,10 +1,10 @@
-# Django Blog Page Application deployed on AWS Application Load Balancer with Auto Scaling, S3, Relational Database Service(RDS), VPC's Components, Lambda, DynamoDB and Cloudfront with Route 53
+# Django Blog Page Application deployed on AWS Application Load Balancer with Auto Scaling, S3, Relational Database Service(RDS), VPC's Components, Lambda, DynamoDB and CloudFront with Route 53
 
 ## Description
 
-The Blog Page Application aims to deploy blog application as a web application written Django Framework on AWS Cloud Infrastructure. This infrastructure has Application Load Balancer with Auto Scaling Group of Elastic Compute Cloud (EC2) Instances and Relational Database Service (RDS) on defined VPC. Also, The Cloudfront and Route 53 services are located in front of the architecture and manage the traffic in secure. User is able to upload pictures and videos on own blog page and these are kept on S3 Bucket. This architecture will be created by Firms DevOps Guy.
+The Blog Page Application aims to deploy blog application as a web application written Django Framework on AWS Cloud Infrastructure. This infrastructure has Application Load Balancer with Auto Scaling Group of Elastic Compute Cloud (EC2) Instances and Relational Database Service (RDS) on defined VPC. Also, The CloudFront and Route 53 services are located in front of the architecture and manage the traffic in secure. User is able to upload pictures and videos on own blog page and these are kept on S3 Bucket.
 
-## Problem Statement
+## Project Details
 
 ![Project](capstone.jpg)
 
@@ -99,9 +99,9 @@ In the architecture, you can configure your infrastructure using the followings,
 
   - Please read carefully "Developer notes" to manage RDS sub settings.
 
-- Cloudfront should be set as a cache server which points to Application Load Balance with following configurations;
+- CloudFront should be set as a cache server which points to Application Load Balance with following configurations;
 
-  - The cloudfront distribution should communicate with ALB securely.
+  - The CloudFront distribution should communicate with ALB securely.
 
   - Origin Protocol policy can be selected as `HTTPS only`.
 
@@ -123,11 +123,11 @@ In the architecture, you can configure your infrastructure using the followings,
 
   - Failover routing policy should be set while publishing application
 
-    - Primary connection is going to be Cloudformation
+    - Primary connection is going to be CloudFormation
 
     - Secondary connection is going to be a static website placed another S3 bucket. This S3 bucket has just basic static website that has a picture said "the page is under construction" given files within S3_static_Website folder
 
-    - Healthcheck should check If Cloudfront is healthy or not.
+    - Healthcheck should check If CloudFront is healthy or not.
 
 - As S3 Bucket
 
@@ -167,7 +167,7 @@ In the architecture, you can configure your infrastructure using the followings,
 
 ![Phonebook App Search Page](./outcome.png)
 
-### At the end of the project, following topics are to be covered;
+### The following topics will be used at the end of the project:
 
 - Bash scripting
 
@@ -209,13 +209,13 @@ In the architecture, you can configure your infrastructure using the followings,
 
 - Get Certificate with AWS Certification Manager Configuration
 
-- AWS Cloudfront Configuration
+- AWS CloudFront Configuration
 
 - Route 53 Configuration
 
 - Git & Github for Version Control System
 
-### At the end of the project, students will be able to;
+### At the end of the project, you will be able to;
 
 - Construct VPC environment with whole components like public and private subnets, route tables and managing their routes, internet Gateway, NAT Instance.
 
@@ -227,11 +227,11 @@ In the architecture, you can configure your infrastructure using the followings,
 
 - Create a Lambda function using S3, Lambda and DynamoDB table.
 
-- Demonstrate their configuration skills of AWS VPC, EC2 Launch Templates, Application Load Balancer, ALB Target Group, ALB Listener, Auto Scaling Group, S3, RDS, Cloudfront, Route 53.
+- Demonstrate their configuration skills of AWS VPC, EC2 Launch Templates, Application Load Balancer, ALB Target Group, ALB Listener, Auto Scaling Group, S3, RDS, CloudFront, Route 53.
 
 - Apply git commands (push, pull, commit, add etc.) and Github as Version Control System.
 
-## Steps to Solution
+## Solution Steps
 
 - Step 1: Create dedicated VPC and whole components
 
@@ -239,9 +239,9 @@ In the architecture, you can configure your infrastructure using the followings,
 
 - Step 3: Create RDS
 
-- Step 4: Create two S3 Buckets and set one of these as static website.
+- Step 4: Create two S3 Buckets and set one of these as static website
 
-- Step 5: Download or clone project definition from GitHub.
+- Step 5: Download or clone project definition
 
 - Step 6: Prepare your Github repository
 
@@ -259,7 +259,7 @@ In the architecture, you can configure your infrastructure using the followings,
 
 - Step 13: Create Autoscaling Group with Launch Template
 
-- Step 14: Create Cloudfront in front of ALB
+- Step 14: Create CloudFront in front of ALB
 
 - Step 15: Create Route 53 with Failover settings
 
