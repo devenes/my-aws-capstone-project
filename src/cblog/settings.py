@@ -90,7 +90,7 @@ DATABASES = {
         'PASSWORD': config('PASSWORD'),
         # database endpoint is written here
         'HOST': 'aws-capstone-rds.cukd79ofsohr.us-east-1.rds.amazonaws.com',
-        'PORT': '3306'  # database port is written here
+        'PORT': '3306'  # database port number is written here
     }
 }
 
