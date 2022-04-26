@@ -1,4 +1,4 @@
-# Blog Page Application (Django) deployed on AWS Application Load Balancer with Auto Scaling, S3, Relational Database Service(RDS), VPC's Components, Lambda, DynamoDB and Cloudfront with Route 53
+# Django Blog Page Application deployed on AWS Application Load Balancer with Auto Scaling, S3, Relational Database Service(RDS), VPC's Components, Lambda, DynamoDB and Cloudfront with Route 53
 
 ## Description
 
@@ -6,7 +6,7 @@ The Blog Page Application aims to deploy blog application as a web application w
 
 ## Problem Statement
 
-![Project_004](capstone.jpg)
+![Project](capstone.jpg)
 
 - Your company has recently ended up a project that aims to serve as Blog web application on isolated VPC environment. You and your colleagues have started to work on the project. Your Developer team has developed the application and you are going to deploy the app in production environment.
 
