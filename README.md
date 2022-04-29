@@ -6,7 +6,7 @@ The Blog Page Application aims to deploy blog application as a web application w
 
 ## Project Details
 
-![Project](capstone.jpg)
+![Project](project.jpg)
 
 - Your company has recently ended up a project that aims to serve as Blog web application on isolated VPC environment. You and your colleagues have started to work on the project. Your Developer team has developed the application and you are going to deploy the app in production environment.
 
